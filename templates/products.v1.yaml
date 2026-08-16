@@ -1,0 +1,10 @@
+Id: products
+Version: 1
+SourceFormat: csv
+TargetFormat: xml
+Description: 
+Extends: 
+RecordsPath: 
+OutputRoot: 
+Mappings: []
+Collections: []

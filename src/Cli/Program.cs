@@ -14,17 +14,10 @@ public static class Program
     {
         try
         {
-            // Comandos administrativos do WARP
-            if (IsTemplateCreateCommand(args))
+            // Comandos administrativos de templates
+            if (IsTemplateCommand(args))
             {
-                return TemplateCommand.Create(
-                    args.Skip(2).ToArray());
-            }
-
-            if (IsTemplateValidateCommand(args))
-            {
-                return TemplateCommand.Validate(
-                    args.Skip(2).ToArray());
+                return ExecuteTemplateCommand(args);
             }
 
             var options = CliOptions.Parse(args);
@@ -75,55 +68,45 @@ public static class Program
                 new ExcelSerializer()
             ]);
 
-            var transformer =
-                new Transformer();
+            var transformer = new Transformer();
 
-            var engine =
-                new WarpEngine(
-                    parsers,
-                    serializers,
-                    transformer);
+            var engine = new WarpEngine(
+                parsers,
+                serializers,
+                transformer);
 
-            var loader =
-                new TemplateLoader();
+            var loader = new TemplateLoader();
 
-            var template =
-                loader.Load(
-                    options.Template);
+            var template = loader.Load(
+                options.Template);
 
             using var input =
-                File.OpenRead(
-                    options.Input);
+                File.OpenRead(options.Input);
 
             var outputDirectory =
                 Path.GetDirectoryName(
-                    Path.GetFullPath(
-                        options.Output));
+                    Path.GetFullPath(options.Output));
 
-            if (!string.IsNullOrEmpty(
-                outputDirectory))
+            if (!string.IsNullOrEmpty(outputDirectory))
             {
                 Directory.CreateDirectory(
                     outputDirectory);
             }
 
             using var output =
-                File.Create(
-                    options.Output);
+                File.Create(options.Output);
 
-            var result =
-                engine.Execute(
-                    input,
-                    output,
-                    template);
+            var result = engine.Execute(
+                input,
+                output,
+                template);
 
             if (!result.IsSuccess)
             {
                 Console.Error.WriteLine(
                     "Conversão falhou.");
 
-                foreach (var error in
-                         result.Validation.Errors)
+                foreach (var error in result.Validation.Errors)
                 {
                     Console.Error.WriteLine(
                         $"[{error.Path}] {error.Message}");
@@ -176,27 +159,77 @@ public static class Program
         }
     }
 
-    private static bool IsTemplateCreateCommand(
+    private static bool IsTemplateCommand(
         string[] args)
     {
         return args.Length >= 2
             && args[0].Equals(
                 "template",
-                StringComparison.OrdinalIgnoreCase)
-            && args[1].Equals(
-                "create",
                 StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsTemplateValidateCommand(
+    private static int ExecuteTemplateCommand(
         string[] args)
     {
-        return args.Length >= 2
-            && args[0].Equals(
-                "template",
-                StringComparison.OrdinalIgnoreCase)
-            && args[1].Equals(
-                "validate",
-                StringComparison.OrdinalIgnoreCase);
+        if (args.Length < 2)
+        {
+            PrintTemplateHelp();
+            return 2;
+        }
+
+        var command = args[1];
+
+        return command.ToLowerInvariant() switch
+        {
+            "create" =>
+                TemplateCommand.Create(
+                    args.Skip(2).ToArray()),
+
+            "validate" =>
+                TemplateCommand.Validate(
+                    args.Skip(2).ToArray()),
+
+            "add-mapping" =>
+                TemplateCommand.AddMapping(
+                    args.Skip(2).ToArray()),
+
+            "add-collection" =>
+                TemplateCommand.AddCollection(
+                    args.Skip(2).ToArray()),
+
+            _ =>
+                UnknownTemplateCommand(command)
+        };
+    }
+
+    private static int UnknownTemplateCommand(
+        string command)
+    {
+        Console.Error.WriteLine(
+            $"Comando de template desconhecido: '{command}'.");
+
+        PrintTemplateHelp();
+
+        return 2;
+    }
+
+    private static void PrintTemplateHelp()
+    {
+        Console.WriteLine(
+            "Comandos de template:");
+
+        Console.WriteLine();
+
+        Console.WriteLine(
+            "  warp template create ...");
+
+        Console.WriteLine(
+            "  warp template validate <template>");
+
+        Console.WriteLine(
+            "  warp template add-mapping ...");
+
+        Console.WriteLine(
+            "  warp template add-collection ...");
     }
 }
