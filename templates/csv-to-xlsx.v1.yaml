@@ -4,6 +4,7 @@ SourceFormat: csv
 TargetFormat: xlsx
 Description: Converts tabular CSV data into an Excel workbook
 RecordsPath: row
+OutputRoot: products
 
 Mappings:
   - SourcePath: sku

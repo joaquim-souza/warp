@@ -1,0 +1,27 @@
+Id: json-order
+Version: 1
+SourceFormat: json
+TargetFormat: xml
+Description: Converts an order with item collection into XML
+OutputRoot: Order
+
+Mappings:
+  - SourcePath: order.id
+    TargetPath: id
+    Required: true
+
+  - SourcePath: sku
+    TargetPath: items.item.sku
+    ForEach: order.items
+    Required: true
+
+  - SourcePath: name
+    TargetPath: items.item.name
+    ForEach: order.items
+    Required: true
+
+  - SourcePath: quantity
+    TargetPath: items.item.quantity
+    ForEach: order.items
+    Required: true
+    Transform: ToNumber

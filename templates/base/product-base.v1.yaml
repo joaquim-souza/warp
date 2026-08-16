@@ -1,0 +1,16 @@
+id: product-base
+version: 1
+
+sourceFormat: json
+targetFormat: xml
+
+outputRoot: products
+
+mappings:
+  - sourcePath: product.id
+    targetPath: product.id
+    required: true
+
+  - sourcePath: product.name
+    targetPath: product.name
+    required: true

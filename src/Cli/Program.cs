@@ -14,6 +14,19 @@ public static class Program
     {
         try
         {
+            // Comandos administrativos do WARP
+            if (IsTemplateCreateCommand(args))
+            {
+                return TemplateCommand.Create(
+                    args.Skip(2).ToArray());
+            }
+
+            if (IsTemplateValidateCommand(args))
+            {
+                return TemplateCommand.Validate(
+                    args.Skip(2).ToArray());
+            }
+
             var options = CliOptions.Parse(args);
 
             if (options.ShowHelp)
@@ -26,8 +39,10 @@ public static class Program
             {
                 Console.Error.WriteLine(
                     $"Erro: arquivo de saída já existe: {options.Output}");
+
                 Console.Error.WriteLine(
                     "Use --force para sobrescrever.");
+
                 return 2;
             }
 
@@ -35,6 +50,7 @@ public static class Program
             {
                 Console.Error.WriteLine(
                     $"Erro: arquivo de entrada não encontrado: {options.Input}");
+
                 return 2;
             }
 
@@ -42,6 +58,7 @@ public static class Program
             {
                 Console.Error.WriteLine(
                     $"Erro: template não encontrado: {options.Template}");
+
                 return 2;
             }
 
@@ -58,37 +75,55 @@ public static class Program
                 new ExcelSerializer()
             ]);
 
-            var transformer = new Transformer();
-            var engine = new WarpEngine(
-                parsers,
-                serializers,
-                transformer);
+            var transformer =
+                new Transformer();
 
-            var loader = new TemplateLoader();
-            var template = loader.Load(options.Template);
+            var engine =
+                new WarpEngine(
+                    parsers,
+                    serializers,
+                    transformer);
 
-            using var input = File.OpenRead(options.Input);
+            var loader =
+                new TemplateLoader();
 
-            var outputDirectory = Path.GetDirectoryName(
-                Path.GetFullPath(options.Output));
+            var template =
+                loader.Load(
+                    options.Template);
 
-            if (!string.IsNullOrEmpty(outputDirectory))
+            using var input =
+                File.OpenRead(
+                    options.Input);
+
+            var outputDirectory =
+                Path.GetDirectoryName(
+                    Path.GetFullPath(
+                        options.Output));
+
+            if (!string.IsNullOrEmpty(
+                outputDirectory))
             {
-                Directory.CreateDirectory(outputDirectory);
+                Directory.CreateDirectory(
+                    outputDirectory);
             }
 
-            using var output = File.Create(options.Output);
+            using var output =
+                File.Create(
+                    options.Output);
 
-            var result = engine.Execute(
-                input,
-                output,
-                template);
+            var result =
+                engine.Execute(
+                    input,
+                    output,
+                    template);
 
             if (!result.IsSuccess)
             {
-                Console.Error.WriteLine("Conversão falhou.");
+                Console.Error.WriteLine(
+                    "Conversão falhou.");
 
-                foreach (var error in result.Validation.Errors)
+                foreach (var error in
+                         result.Validation.Errors)
                 {
                     Console.Error.WriteLine(
                         $"[{error.Path}] {error.Message}");
@@ -97,26 +132,39 @@ public static class Program
                 return 1;
             }
 
-            Console.WriteLine("Conversão concluída.");
-            Console.WriteLine($"Input:    {options.Input}");
-            Console.WriteLine($"Template: {options.Template}");
-            Console.WriteLine($"Output:   {options.Output}");
+            Console.WriteLine(
+                "Conversão concluída.");
+
+            Console.WriteLine(
+                $"Input:    {options.Input}");
+
+            Console.WriteLine(
+                $"Template: {options.Template}");
+
+            Console.WriteLine(
+                $"Output:   {options.Output}");
 
             return 0;
         }
         catch (ArgumentException ex)
         {
-            Console.Error.WriteLine($"Erro de argumento: {ex.Message}");
+            Console.Error.WriteLine(
+                $"Erro de argumento: {ex.Message}");
+
             return 2;
         }
         catch (KeyNotFoundException ex)
         {
-            Console.Error.WriteLine($"Erro de configuração: {ex.Message}");
+            Console.Error.WriteLine(
+                $"Erro de configuração: {ex.Message}");
+
             return 2;
         }
         catch (InvalidOperationException ex)
         {
-            Console.Error.WriteLine($"Erro de configuração: {ex.Message}");
+            Console.Error.WriteLine(
+                $"Erro de configuração: {ex.Message}");
+
             return 2;
         }
         catch (Exception ex)
@@ -126,5 +174,29 @@ public static class Program
 
             return 3;
         }
+    }
+
+    private static bool IsTemplateCreateCommand(
+        string[] args)
+    {
+        return args.Length >= 2
+            && args[0].Equals(
+                "template",
+                StringComparison.OrdinalIgnoreCase)
+            && args[1].Equals(
+                "create",
+                StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsTemplateValidateCommand(
+        string[] args)
+    {
+        return args.Length >= 2
+            && args[0].Equals(
+                "template",
+                StringComparison.OrdinalIgnoreCase)
+            && args[1].Equals(
+                "validate",
+                StringComparison.OrdinalIgnoreCase);
     }
 }

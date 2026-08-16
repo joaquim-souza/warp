@@ -1,0 +1,12 @@
+id: json-product-to-xml
+version: 1
+
+extends: base/product-base.v1.yaml
+
+sourceFormat: json
+targetFormat: xml
+
+mappings:
+  - sourcePath: product.price
+    targetPath: product.price
+    transform: ToNumber

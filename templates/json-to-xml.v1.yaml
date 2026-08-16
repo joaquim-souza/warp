@@ -3,21 +3,22 @@ Version: 1
 SourceFormat: json
 TargetFormat: xml
 Description: Converts a JSON product document into generic XML
+OutputRoot: Product
 
 Mappings:
   - SourcePath: product.id
-    TargetPath: product.id
+    TargetPath: id
     Required: true
 
   - SourcePath: product.name
-    TargetPath: product.name
+    TargetPath: name
     Required: true
 
   - SourcePath: product.price
-    TargetPath: product.price
+    TargetPath: price
     Required: false
     Transform: ToNumber
 
   - SourcePath: product.category
-    TargetPath: product.category
+    TargetPath: category
     Required: false

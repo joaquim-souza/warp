@@ -1,73 +1,118 @@
 using YamlDotNet.Serialization;
-using YamlDotNet.Serialization.NamingConventions;
 
 namespace Warp.Core.Templates;
 
-/// <summary>
-/// Carrega e valida um TemplateDefinition a partir de YAML.
-/// </summary>
 public sealed class TemplateLoader
 {
-    private readonly IDeserializer _deserializer = new DeserializerBuilder()
-        .WithNamingConvention(PascalCaseNamingConvention.Instance)
-        .IgnoreUnmatchedProperties()
-        .Build();
-
+    private readonly IDeserializer _deserializer;
     private readonly TemplateValidator _validator;
+    private readonly TemplateComposer _composer;
 
-    public TemplateLoader(TemplateValidator? validator = null)
+    public TemplateLoader()
     {
-        _validator = validator ?? new TemplateValidator();
+        _deserializer =
+            new DeserializerBuilder()
+                .IgnoreUnmatchedProperties()
+                .Build();
+
+        _validator = new TemplateValidator();
+        _composer = new TemplateComposer();
     }
 
-    public TemplateDefinition Load(string filePath)
+    public TemplateDefinition Load(string path)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
-
-        string yaml = File.ReadAllText(filePath);
-
-        return LoadYaml(yaml);
+        return LoadInternal(
+            path,
+            new HashSet<string>(
+                StringComparer.OrdinalIgnoreCase));
     }
 
-    public TemplateDefinition Load(Stream yamlStream)
+    private TemplateDefinition LoadInternal(
+        string path,
+        HashSet<string> loading)
     {
-        ArgumentNullException.ThrowIfNull(yamlStream);
+        var fullPath = Path.GetFullPath(path);
 
-        using var reader = new StreamReader(yamlStream);
-
-        return LoadYaml(reader.ReadToEnd());
-    }
-
-    private TemplateDefinition LoadYaml(string yamlContent)
-    {
-        if (string.IsNullOrWhiteSpace(yamlContent))
+        if (!loading.Add(fullPath))
         {
             throw new InvalidOperationException(
-                "Template YAML vazio ou inválido.");
+                $"Ciclo de herança detectado no template: '{fullPath}'.");
         }
 
-        var template = _deserializer.Deserialize<TemplateDefinition>(
-            yamlContent);
+        if (!File.Exists(fullPath))
+        {
+            throw new FileNotFoundException(
+                $"Template não encontrado: '{fullPath}'.",
+                fullPath);
+        }
+
+        var yaml = File.ReadAllText(fullPath);
+
+        var template =
+            _deserializer.Deserialize<TemplateDefinition>(yaml);
 
         if (template is null)
         {
             throw new InvalidOperationException(
-                "Template YAML vazio ou inválido.");
+                $"Template vazio ou inválido: '{fullPath}'.");
         }
 
-        var validation = _validator.Validate(template);
-
-        if (!validation.IsValid)
+        if (!string.IsNullOrWhiteSpace(template.Extends))
         {
-            var details = string.Join(
-                Environment.NewLine,
-                validation.Errors.Select(error =>
-                    $"- {error.Path}: {error.Message}"));
+            var basePath =
+                ResolveBaseTemplate(
+                    fullPath,
+                    template.Extends);
 
-            throw new InvalidOperationException(
-                $"Template inválido:{Environment.NewLine}{details}");
+            var baseTemplate =
+                LoadInternal(
+                    basePath,
+                    loading);
+
+            template =
+                _composer.Compose(
+                    baseTemplate,
+                    template);
         }
+
+        loading.Remove(fullPath);
+
+        _validator.Validate(template);
 
         return template;
+    }
+
+    private static string ResolveBaseTemplate(
+        string childPath,
+        string extends)
+    {
+        var directory =
+            Path.GetDirectoryName(childPath)
+            ?? Directory.GetCurrentDirectory();
+
+        var candidate =
+            Path.Combine(
+                directory,
+                extends);
+
+        if (File.Exists(candidate))
+            return candidate;
+
+        if (!Path.HasExtension(candidate))
+        {
+            var yamlCandidate = candidate + ".yaml";
+
+            if (File.Exists(yamlCandidate))
+                return yamlCandidate;
+
+            var ymlCandidate = candidate + ".yml";
+
+            if (File.Exists(ymlCandidate))
+                return ymlCandidate;
+        }
+
+        throw new FileNotFoundException(
+            $"Template base '{extends}' não encontrado. " +
+            $"Procurado a partir de '{directory}'.");
     }
 }

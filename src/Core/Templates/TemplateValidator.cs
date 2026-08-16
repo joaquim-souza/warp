@@ -9,7 +9,8 @@ namespace Warp.Core.Templates;
 /// </summary>
 public sealed class TemplateValidator
 {
-    public TemplateValidationResult Validate(TemplateDefinition template)
+    public TemplateValidationResult Validate(
+        TemplateDefinition template)
     {
         ArgumentNullException.ThrowIfNull(template);
 
@@ -17,7 +18,9 @@ public sealed class TemplateValidator
 
         if (string.IsNullOrWhiteSpace(template.Id))
         {
-            result.AddError("Id", "Template deve possuir um Id.");
+            result.AddError(
+                "Id",
+                "Template deve possuir um Id.");
         }
 
         if (template.Version <= 0)
@@ -48,22 +51,41 @@ public sealed class TemplateValidator
                 "Template deve possuir pelo menos um mapping.");
         }
 
+        if (!string.IsNullOrWhiteSpace(template.OutputRoot))
+        {
+            if (template.OutputRoot.Contains('.'))
+            {
+                result.AddError(
+                    "OutputRoot",
+                    "OutputRoot deve representar apenas o nome da raiz, sem caminho.");
+            }
+
+            if (template.OutputRoot.Any(char.IsWhiteSpace))
+            {
+                result.AddError(
+                    "OutputRoot",
+                    "OutputRoot não pode conter espaços.");
+            }
+        }
+
         for (int i = 0; i < template.Mappings.Count; i++)
         {
             var mapping = template.Mappings[i];
 
-            if (string.IsNullOrWhiteSpace(mapping.SourcePath))
+            if (!TemplatePathValidator.IsValid(
+                    mapping.SourcePath))
             {
                 result.AddError(
                     $"Mappings[{i}].SourcePath",
-                    "SourcePath não pode ser vazio.");
+                    $"SourcePath inválido: '{mapping.SourcePath}'.");
             }
 
-            if (string.IsNullOrWhiteSpace(mapping.TargetPath))
+            if (!TemplatePathValidator.IsValid(
+                    mapping.TargetPath))
             {
                 result.AddError(
                     $"Mappings[{i}].TargetPath",
-                    "TargetPath não pode ser vazio.");
+                    $"TargetPath inválido: '{mapping.TargetPath}'.");
             }
         }
 
@@ -73,12 +95,18 @@ public sealed class TemplateValidator
 
 public sealed class TemplateValidationResult
 {
-    public bool IsValid => Errors.Count == 0;
+    public bool IsValid =>
+        Errors.Count == 0;
 
     public List<TemplateValidationError> Errors { get; } = new();
 
-    public void AddError(string path, string message) =>
-        Errors.Add(new TemplateValidationError(path, message));
+    public void AddError(
+        string path,
+        string message) =>
+        Errors.Add(
+            new TemplateValidationError(
+                path,
+                message));
 }
 
 public sealed record TemplateValidationError(

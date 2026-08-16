@@ -1,0 +1,7 @@
+id: csv-products
+version: 1
+sourceFormat: csv
+targetFormat: xml
+outputRoot: csv-products.v1
+mappings: []
+collections: []

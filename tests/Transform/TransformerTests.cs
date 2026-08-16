@@ -247,4 +247,157 @@ public sealed class TransformerTests
             result1.Output.Root.Navigate("product.price")?.Value,
             result2.Output.Root.Navigate("product.price")?.Value);
     }
+
+    [Fact]
+public void Transform_ShouldUseCustomOutputRoot()
+{
+    var root = new CanonicalNode("root");
+
+    var product = root.AddChild("product");
+    product.AddChild("id", "123");
+    product.AddChild("name", "Keyboard");
+
+    var source = new CanonicalDocument(root, "json");
+
+    var template = new TemplateDefinition
+    {
+        Id = "custom-root",
+        Version = 1,
+        SourceFormat = "json",
+        TargetFormat = "xml",
+        OutputRoot = "product",
+
+        Mappings =
+        [
+            new FieldMapping
+            {
+                SourcePath = "product.id",
+                TargetPath = "id",
+                Required = true
+            },
+
+            new FieldMapping
+            {
+                SourcePath = "product.name",
+                TargetPath = "name",
+                Required = true
+            }
+        ]
+    };
+
+    var (output, validation) =
+        new Transformer().Transform(source, template);
+
+    Assert.True(validation.IsValid);
+
+    Assert.Equal("product", output.Root.Name);
+    Assert.Equal("123", output.Root.Child("id")?.Value);
+    Assert.Equal("Keyboard", output.Root.Child("name")?.Value);
+}
+
+[Fact]
+public void Transform_ShouldUseCustomOutputRootForRecords()
+{
+    var root = new CanonicalNode("rows");
+
+    var row1 = root.AddChild("row");
+    row1.AddChild("sku", "001");
+
+    var row2 = root.AddChild("row");
+    row2.AddChild("sku", "002");
+
+    var source = new CanonicalDocument(root, "csv");
+
+    var template = new TemplateDefinition
+    {
+        Id = "csv-custom-root",
+        Version = 1,
+        SourceFormat = "csv",
+        TargetFormat = "xlsx",
+        RecordsPath = "row",
+        OutputRoot = "products",
+
+        Mappings =
+        [
+            new FieldMapping
+            {
+                SourcePath = "sku",
+                TargetPath = "sku",
+                Required = true
+            }
+        ]
+    };
+
+    var (output, validation) =
+        new Transformer().Transform(source, template);
+
+    Assert.True(validation.IsValid);
+
+    Assert.Equal("products", output.Root.Name);
+
+    var records =
+        output.Root.ChildrenNamed("record").ToList();
+
+    Assert.Equal(2, records.Count);
+    Assert.Equal("001", records[0].Child("sku")?.Value);
+    Assert.Equal("002", records[1].Child("sku")?.Value);
+}
+
+[Fact]
+public void Transform_ShouldAllowDifferentTargetStructure()
+{
+    var root = new CanonicalNode("root");
+
+    var product = root.AddChild("product");
+    product.AddChild("id", "123");
+    product.AddChild("name", "Keyboard");
+
+    var source =
+        new CanonicalDocument(root, "json");
+
+    var template = new TemplateDefinition
+    {
+        Id = "test",
+        Version = 1,
+        SourceFormat = "json",
+        TargetFormat = "xml",
+        OutputRoot = "Order",
+
+        Mappings =
+        [
+            new FieldMapping
+            {
+                SourcePath = "product.id",
+                TargetPath = "item.identification.code",
+                Required = true
+            },
+
+            new FieldMapping
+            {
+                SourcePath = "product.name",
+                TargetPath = "item.description",
+                Required = true
+            }
+        ]
+    };
+
+    var (output, validation) =
+        new Transformer().Transform(
+            source,
+            template);
+
+    Assert.True(validation.IsValid);
+
+    Assert.Equal(
+        "123",
+        output.Root
+            .Navigate("item.identification.code")
+            ?.Value);
+
+    Assert.Equal(
+        "Keyboard",
+        output.Root
+            .Navigate("item.description")
+            ?.Value);
+}
 }

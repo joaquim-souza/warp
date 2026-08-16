@@ -1,11 +1,11 @@
 # WARP
 
-**WARP — Workflow and Artifact Representation Pipeline**
+**WARP — Workflow-Agnostic Record Processor**
 
-A deterministic M2M/B2B transformation engine built with .NET.
+Engine de transformação de dados baseada em templates declarativos.
 
-WARP converts data between different representations through a canonical
-intermediate model instead of implementing direct format-to-format converters.
+O WARP recebe dados em um formato de entrada, converte-os para uma representação
+canônica e aplica um template para produzir um formato de saída.
 
 ```text
 Input
@@ -31,95 +31,146 @@ Serializer
   ▼
 Output
 
-Why WARP?
+Objetivo
 
-Traditional format conversion quickly becomes an N×N problem:
+O WARP foi projetado para resolver integrações de dados sem transformar cada
+integração em código específico.
 
-CSV  ─────► JSON
- │  ╲       │
- │   ╲      │
- ▼    ╲     ▼
-XML ◄─── XLSX
+A regra de transformação fica em YAML.
 
-WARP uses a canonical representation:
+Exemplo:
 
-             ┌── CSV
-             │
-             ├── JSON
-Input ───────┼── XML
-             │
-             └── ...
-                    │
-                    ▼
-             Canonical Model
-                    │
-                    ├── XLSX
-                    ├── XML
-                    ├── JSON
-                    └── ...
+Id: json-to-xml
+Version: 1
+SourceFormat: json
+TargetFormat: xml
 
-Adding a new input format requires a parser.
-
-Adding a new output format requires a serializer.
-
-The transformation rules remain in templates.
-
-Current capabilities
-
-WARP currently supports:
-
-Input	Output	Status
-CSV	XLSX	✅
-JSON	XML	✅
-XML	cXML	✅
-
-The project intentionally starts small.
-
-More formats and transformations will be added incrementally.
-
-Design principles
-Deterministic
-
-The same input and the same template must produce the same result.
-
-same input
-+
-same template
-+
-same engine
-=
-same output
-
-Non-deterministic requirements are isolated behind explicit abstractions such as IClock.
-
-Template-driven
-
-Transformation rules are data, not application code.
-
-Example:
 
 Mappings:
-  - SourcePath: price
-    TargetPath: price
+  - SourcePath: product.id
+    TargetPath: product.id
+    Required: true
+
+
+  - SourcePath: product.name
+    TargetPath: product.name
+    Required: true
+
+
+  - SourcePath: product.price
+    TargetPath: product.price
     Transform: ToNumber
 
-Changing a mapping does not require recompiling the engine.
+Assim, uma alteração de mapeamento normalmente não exige recompilar a engine.
 
-Fail-closed
+Arquitetura
+                    ┌─────────────────┐
+                    │       CLI       │
+                    └────────┬────────┘
+                             │
+                             ▼
+                    ┌─────────────────┐
+                    │   WarpEngine    │
+                    └────────┬────────┘
+                             │
+              ┌──────────────┼──────────────┐
+              ▼              ▼              ▼
+         ParserRegistry  Transformer  SerializerRegistry
+              │              │              │
+              ▼              ▼              ▼
+          Canonical      Template       Canonical
+          Document       Definition     Document
+Core
 
-Required fields are explicitly declared.
+src/Core
 
-If a required field is missing, WARP refuses to generate the output.
+Contém a engine independente de interface de usuário.
 
-- SourcePath: SKU
-  TargetPath: ItemOut.SKU
-  Required: true
-No arbitrary scripting
+Principais componentes:
 
-Templates use a deliberately closed set of transformations.
+Model — representação canônica
+Parsing — parsers de entrada
+Serialization — serializers
+Templates — definição e validação dos templates
+Transform — aplicação dos mappings
+Registry — descoberta dos parsers e serializers
+Engine — orquestração
+Time — abstração de relógio
+Adapters
 
-Current transformations:
+src/adapters
 
+Implementações específicas de formatos externos.
+
+Atualmente:
+
+Warp.Excel
+
+O Core não precisa conhecer detalhes de Excel.
+
+Formatos
+Entrada
+
+Atualmente:
+
+CSV
+JSON
+XML
+Saída
+
+Atualmente:
+
+XML
+XLSX
+
+Novos formatos devem ser adicionados através de implementações de:
+
+ICanonicalParser
+
+ou:
+
+ICanonicalSerializer
+Templates
+
+Templates ficam em:
+
+templates/
+
+Exemplos:
+
+templates/
+├── csv-to-xlsx.v1.yaml
+├── json-to-xml.v1.yaml
+└── xml-to-cxml.v1.yaml
+
+A versão faz parte explicitamente do template.
+
+Exemplo:
+
+csv-to-xlsx.v1.yaml
+csv-to-xlsx.v2.yaml
+
+O WARP não escolhe automaticamente a versão mais recente.
+
+Isso evita mudanças implícitas de comportamento.
+
+Mappings
+
+Cada mapping possui:
+
+SourcePath:
+TargetPath:
+Required:
+DefaultValue:
+Transform:
+
+Exemplo:
+
+- SourcePath: price
+  TargetPath: product.price
+  Required: false
+  Transform: ToNumber
+Transformações disponíveis
 None
 Trim
 Upper
@@ -127,146 +178,212 @@ Lower
 ToNumber
 ToDateIso8601
 
-The template system does not execute arbitrary code.
+O conjunto é deliberadamente fechado.
 
-CLI
-CSV → Excel
-dotnet run --project src/Cli -- convert `
-  --input samples/csv/products.csv `
-  --template templates/csv-to-xlsx.v1.yaml `
-  --output output/products.xlsx
-JSON → XML
-dotnet run --project src/Cli -- convert `
-  --input samples/json/product.json `
-  --template templates/json-to-xml.v1.yaml `
-  --output output/product.xml
-XML → cXML
-dotnet run --project src/Cli -- convert `
-  --input samples/xml/purchase-order.xml `
-  --template templates/xml-to-cxml.v1.yaml `
-  --output output/order.xml
+Templates não executam código arbitrário.
 
-The input and output filenames are independent.
+Campos obrigatórios
 
-This allows integration workflows to rename generated artifacts according to
-the conventions required by the destination system.
+Um campo pode ser marcado como:
 
-Templates
+Required: true
 
-Templates define the transformation contract.
+Se o campo não existir e não houver DefaultValue, a transformação falha
+com erro de validação.
 
-Example:
+Exemplo:
 
-Id: csv-to-xlsx
-Version: 1
-SourceFormat: csv
-TargetFormat: xlsx
+[documento.PurchaseOrder.OrderID]
+Campo obrigatório ausente: 'PurchaseOrder.OrderID'
+
+Essa rigidez é intencional.
+
+O template define o contrato esperado para aquela transformação.
+
+Registros repetidos
+
+Templates podem definir:
+
 RecordsPath: row
 
+Nesse caso, cada row é tratado como um registro independente.
 
-Mappings:
-  - SourcePath: sku
-    TargetPath: sku
-    Required: true
+Exemplo:
 
+CSV
+ │
+ ├── row
+ ├── row
+ └── row
 
-  - SourcePath: name
-    TargetPath: name
-    Required: true
+O Transformer processa cada registro separadamente.
 
+Sem RecordsPath, o documento inteiro é tratado como um único registro.
 
-  - SourcePath: price
-    TargetPath: price
-    Transform: ToNumber
+Determinismo
 
-Templates are explicitly versioned.
+Uma regra central do WARP é:
 
-csv-to-xlsx.v1.yaml
-csv-to-xlsx.v2.yaml
+mesmo input + mesmo template = mesmo output
 
-Consumers select the version they want.
+O Transformer não mantém estado entre chamadas e não gera valores aleatórios.
 
-There is no implicit "latest version".
+Quando um formato exige valores temporais ou identificadores únicos, a
+dependência temporal deve ser explicitamente injetada através de:
 
-Architecture
-Warp.Core
-│
-├── Model
-│   ├── CanonicalNode
-│   └── CanonicalDocument
-│
-├── Parsing
-│   ├── ICanonicalParser
-│   ├── CsvParser
-│   ├── JsonParser
-│   └── XmlParser
-│
-├── Serialization
-│   ├── ICanonicalSerializer
-│   └── XmlCanonicalSerializer
-│
-├── Templates
-│   ├── TemplateDefinition
-│   ├── FieldMapping
-│   ├── TemplateLoader
-│   └── TemplateValidator
-│
-├── Transform
-│   ├── Transformer
-│   ├── ValidationResult
-│   └── ValidationError
-│
-├── Registry
-│   ├── ParserRegistry
-│   └── SerializerRegistry
-│
-├── Engine
-│   └── WarpEngine
-│
-└── Time
-    ├── IClock
-    ├── SystemClock
-    └── FixedClock
+IClock
 
-Adapters remain outside the Core.
+Testes podem utilizar:
 
-src/adapters/
-└── Warp.Excel/
-    └── ExcelSerializer
+FixedClock
 
-This keeps the engine independent from specific output technologies.
+para manter o resultado reproduzível.
 
-Testing
+CLI
 
-Run:
+Exemplo:
+
+dotnet run --project src/Cli -- `
+  --template templates/json-to-xml.v1.yaml `
+  --input samples/json/product.json `
+  --output samples/output.xml
+
+O nome do arquivo de saída é definido pelo usuário.
+
+Isso permite que uma mesma transformação seja utilizada em diferentes
+pipelines de organização de arquivos.
+
+Exemplos
+JSON → XML
+
+Entrada:
+
+samples/json/product.json
+
+Template:
+
+templates/json-to-xml.v1.yaml
+
+Saída:
+
+samples/output.xml
+CSV → XLSX
+
+Entrada:
+
+samples/csv/products.csv
+
+Template:
+
+templates/csv-to-xlsx.v1.yaml
+
+Saída:
+
+samples/output.xlsx
+XML → cXML
+
+Entrada:
+
+samples/xml/purchase-order.xml
+
+Template:
+
+templates/xml-to-cxml.v1.yaml
+Testes
+
+Os testes ficam em:
+
+tests/
+
+Categorias:
+
+tests/
+├── Model/
+├── Parsing/
+├── Serialization/
+├── Template/
+├── Transform/
+└── Integration/
+
+Executar todos:
 
 dotnet test
 
-The test suite covers parsing, transformation, validation,
-serialization and deterministic behavior.
+Build:
 
-Roadmap
+dotnet build
+Princípios
+Explicit over implicit
 
-WARP intentionally grows incrementally.
+O template declara explicitamente como a transformação deve funcionar.
 
-Current focus:
+Fail closed
 
-CSV → XLSX
-JSON → XML
-XML → cXML
-deterministic transformation
-template validation
-CLI execution
+Campos obrigatórios ausentes não são silenciosamente ignorados.
 
-Future possibilities include:
+Determinismo
 
-additional enterprise formats
-richer template validation
-additional serializers
-additional parsers
-integration adapters
-stronger B2B envelope support
-operational observability
+O mesmo input e template devem produzir o mesmo resultado.
 
-The goal is to prove the M2M/B2B transformation model first and scale the
-feature set afterwards.
+Core independente
+
+O Core não depende de CLI, filesystem específico ou implementação de
+formato externo.
+
+Sem execução arbitrária
+
+Templates são configuração declarativa, não scripts.
+
+Extensibilidade por contrato
+
+Novos formatos são adicionados implementando os contratos existentes, sem
+alterar o pipeline central.
+
+Estrutura
+Warp/
+├── src/
+│   ├── Core/
+│   │   ├── Engine/
+│   │   ├── Model/
+│   │   ├── Parsing/
+│   │   ├── Registry/
+│   │   ├── Serialization/
+│   │   ├── Templates/
+│   │   ├── Time/
+│   │   └── Transform/
+│   │
+│   ├── Cli/
+│   │
+│   └── adapters/
+│       └── Warp.Excel/
+│
+├── templates/
+│
+├── samples/
+│
+├── tests/
+│
+└── Warp.slnx
+Status
+
+WARP atualmente possui:
+
+ Canonical Document Model
+ CSV Parser
+ JSON Parser
+ XML Parser
+ XML Serializer
+ Excel Serializer
+ Parser Registry
+ Serializer Registry
+ Declarative Templates
+ Template Validation
+ Field Mapping
+ Default Values
+ Transformations
+ Required Fields
+ Multiple Records
+ Deterministic Transformer
+ Clock abstraction
+ CLI
+ Integration Tests
