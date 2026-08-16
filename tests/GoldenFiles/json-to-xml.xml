@@ -1,0 +1,7 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Product>
+  <id>P001</id>
+  <name>Mechanical Keyboard</name>
+  <price>299.90</price>
+  <category>peripherals</category>
+</Product>

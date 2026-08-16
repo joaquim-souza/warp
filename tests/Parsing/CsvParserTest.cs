@@ -68,5 +68,176 @@ public sealed class CsvParserTests
         Assert.Equal(
             "line one\nline two",
             row?.Child("description")?.Value);
+    }}
+
+   
+public sealed class CsvParserMalformedTests
+{
+    [Fact]
+    public void Parse_ShouldFillMissingColumns()
+    {
+        const string csv =
+            "id,name,price\n" +
+            "1,Product";
+
+        using var stream =
+            new MemoryStream(
+                Encoding.UTF8.GetBytes(csv));
+
+        var parser =
+            new CsvParser();
+
+        var document =
+            parser.Parse(stream);
+
+        var row =
+            document.Root.Child("row");
+
+        Assert.NotNull(row);
+
+        Assert.Equal(
+            "1",
+            row!.Child("id")!.Value);
+
+        Assert.Equal(
+            "Product",
+            row.Child("name")!.Value);
+
+        Assert.Equal(
+            string.Empty,
+            row.Child("price")!.Value);
+    }
+
+    [Fact]
+    public void Parse_ShouldRejectExtraColumns()
+    {
+        const string csv =
+            "id,name\n" +
+            "1,Product,Unexpected";
+
+        using var stream =
+            new MemoryStream(
+                Encoding.UTF8.GetBytes(csv));
+
+        var parser =
+            new CsvParser();
+
+        var exception =
+            Assert.Throws<InvalidOperationException>(
+                () => parser.Parse(stream));
+
+        Assert.Contains(
+            "possui 3 colunas",
+            exception.Message);
+
+        Assert.Contains(
+            "cabeçalho possui 2",
+            exception.Message);
+    }
+
+    [Fact]
+    public void Parse_ShouldIgnoreEmptyLines()
+    {
+        const string csv =
+            "id,name\n" +
+            "\n" +
+            "1,Product\n" +
+            "\n";
+
+        using var stream =
+            new MemoryStream(
+                Encoding.UTF8.GetBytes(csv));
+
+        var parser =
+            new CsvParser();
+
+        var document =
+            parser.Parse(stream);
+
+        Assert.Equal(
+            1,
+            document.Root.Children.Count);
+    }
+
+    [Fact]
+    public void Parse_ShouldRejectUnclosedQuotes()
+    {
+        const string csv =
+            "id,name\n" +
+            "1,\"Product";
+
+        using var stream =
+            new MemoryStream(
+                Encoding.UTF8.GetBytes(csv));
+
+        var parser =
+            new CsvParser();
+
+        var exception =
+            Assert.Throws<InvalidOperationException>(
+                () => parser.Parse(stream));
+
+        Assert.Contains(
+            "aspas não fechadas",
+            exception.Message);
+    }
+
+    [Fact]
+public void Parse_ShouldReadUtf8()
+{
+    const string csv =
+        "id,name\n" +
+        "1,João";
+
+    using var stream =
+        new MemoryStream(
+            Encoding.UTF8.GetBytes(csv));
+
+    var parser =
+        new CsvParser();
+
+    var document =
+        parser.Parse(stream);
+
+    var value =
+        document.Root
+            .Child("row")!
+            .Child("name")!
+            .Value;
+
+    Assert.Equal(
+        "João",
+        value);
+}
+
+[Fact]
+public void Parse_ShouldReadUtf8WithBom()
+{
+    const string csv =
+        "id,name\n" +
+        "1,São Paulo";
+
+    var encoding =
+        new UTF8Encoding(
+            encoderShouldEmitUTF8Identifier: true);
+
+    using var stream =
+        new MemoryStream(
+            encoding.GetBytes(csv));
+
+    var parser =
+        new CsvParser();
+
+    var document =
+        parser.Parse(stream);
+
+    var row =
+        document.Root.Child("row");
+
+    Assert.NotNull(row);
+
+    Assert.Equal(
+        "São Paulo",
+        row!.Child("name")!.Value);
     }
 }

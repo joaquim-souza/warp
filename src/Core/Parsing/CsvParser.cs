@@ -3,116 +3,267 @@ using Warp.Core.Model;
 
 namespace Warp.Core.Parsing;
 
-/// <summary>
-/// Parser CSV com cabeçalho. Produz uma raiz "rows" com um filho "row" por
-/// linha, e dentro de cada "row" um filho por coluna (nome = cabeçalho,
-/// valor = célula).
-/// <para/>
-/// <b>LIMITAÇÃO CONHECIDA, documentada de propósito:</b> implementação RFC 4180
-/// simplificada — lida com campos entre aspas contendo vírgula ou quebra de
-/// linha, mas não cobre 100% dos casos extremos da RFC (aspas escapadas
-/// aninhadas de forma incomum, por exemplo). Para CSV gerado por Excel/Google
-/// Sheets (o caso de uso real do WARP) isso cobre o que aparece na prática.
-/// Evolução natural: trocar por CsvHelper se algum CSV de origem realmente
-/// exigir 100% de conformidade RFC.
-/// </summary>
 public sealed class CsvParser : ICanonicalParser
 {
     public string FormatName => "csv";
 
     public CanonicalDocument Parse(Stream input)
     {
-        using var reader = new StreamReader(input, Encoding.UTF8, leaveOpen: true);
-        var lines = ReadCsvRecords(reader);
-
-        var root = new CanonicalNode("rows");
-        if (lines.Count == 0)
-        {
-            return new CanonicalDocument(root, FormatName);
-        }
-
-        var headers = lines[0];
-        for (int i = 1; i < lines.Count; i++)
-        {
-            var fields = lines[i];
-            var rowNode = new CanonicalNode("row");
-            for (int col = 0; col < headers.Count; col++)
-            {
-                string value = col < fields.Count ? fields[col] : "";
-                rowNode.AddChild(headers[col].Trim(), value);
-            }
-            root.AddChild(rowNode);
-        }
-
-        return new CanonicalDocument(root, FormatName);
+        return Parse(
+            input,
+            "utf-8");
     }
 
-    /// <summary>Lê registros respeitando campos entre aspas (que podem conter vírgula/quebra de linha).</summary>
-    private static List<List<string>> ReadCsvRecords(TextReader reader)
+    public CanonicalDocument Parse(
+        Stream input,
+        string encodingName)
     {
-        var records = new List<List<string>>();
-        var currentRecord = new List<string>();
-        var currentField = new StringBuilder();
-        bool insideQuotes = false;
-        int ch;
-        bool anyContentInRecord = false;
+        var encoding =
+            ResolveEncoding(
+                encodingName);
 
-        while ((ch = reader.Read()) != -1)
+        using var reader =
+            new StreamReader(
+                input,
+                encoding,
+                detectEncodingFromByteOrderMarks:
+                    IsUtf8(encoding),
+                leaveOpen: true);
+
+        var records =
+            ReadRecords(reader);
+
+        if (records.Count == 0)
         {
-            char c = (char)ch;
-            anyContentInRecord = true;
+            return new CanonicalDocument(
+                new CanonicalNode("rows"),
+                "csv");
+        }
 
-            if (insideQuotes)
+        var headers =
+            ParseLine(records[0]);
+
+        if (headers.Count == 0)
+        {
+            return new CanonicalDocument(
+                new CanonicalNode("rows"),
+                "csv");
+        }
+
+        var root =
+            new CanonicalNode("rows");
+
+        foreach (var record in records.Skip(1))
+        {
+            if (string.IsNullOrWhiteSpace(record))
             {
-                if (c == '"')
-                {
-                    if (reader.Peek() == '"')
-                    {
-                        reader.Read();
-                        currentField.Append('"');
-                    }
-                    else
-                    {
-                        insideQuotes = false;
-                    }
-                }
-                else
-                {
-                    currentField.Append(c);
-                }
                 continue;
             }
 
-            switch (c)
+            var values =
+                ParseLine(record);
+
+            if (values.Count > headers.Count)
             {
-                case '"':
-                    insideQuotes = true;
-                    break;
-                case ',':
-                    currentRecord.Add(currentField.ToString());
-                    currentField.Clear();
-                    break;
-                case '\r':
-                    break; // ignora, trata \n como o delimitador de linha real
-                case '\n':
-                    currentRecord.Add(currentField.ToString());
-                    currentField.Clear();
-                    records.Add(currentRecord);
-                    currentRecord = new List<string>();
-                    anyContentInRecord = false;
-                    break;
-                default:
-                    currentField.Append(c);
-                    break;
+                throw new InvalidOperationException(
+                    $"CSV inválido: linha possui {values.Count} " +
+                    $"colunas, mas o cabeçalho possui {headers.Count}.");
+            }
+
+            var row =
+                root.AddChild("row");
+
+            for (var i = 0; i < headers.Count; i++)
+            {
+                var value =
+                    i < values.Count
+                        ? values[i]
+                        : string.Empty;
+
+                row.AddChild(
+                    headers[i],
+                    value);
             }
         }
 
-        if (anyContentInRecord || currentField.Length > 0 || currentRecord.Count > 0)
+        return new CanonicalDocument(
+            root,
+            "csv");
+    }
+
+    private static Encoding ResolveEncoding(
+        string encodingName)
+    {
+        Encoding.RegisterProvider(
+            CodePagesEncodingProvider.Instance);
+
+        if (string.IsNullOrWhiteSpace(
+            encodingName))
         {
-            currentRecord.Add(currentField.ToString());
-            records.Add(currentRecord);
+            return Encoding.UTF8;
+        }
+
+        return encodingName
+            .Trim()
+            .ToLowerInvariant() switch
+        {
+            "utf-8" =>
+                new UTF8Encoding(
+                    encoderShouldEmitUTF8Identifier: false),
+
+            "utf8" =>
+                new UTF8Encoding(
+                    encoderShouldEmitUTF8Identifier: false),
+
+            "windows-1252" =>
+                Encoding.GetEncoding(1252),
+
+            "cp1252" =>
+                Encoding.GetEncoding(1252),
+
+            "iso-8859-1" =>
+                Encoding.GetEncoding(28591),
+
+            "latin1" =>
+                Encoding.GetEncoding(28591),
+
+            _ =>
+                throw new ArgumentException(
+                    $"Encoding não suportado: '{encodingName}'. " +
+                    "Use utf-8, windows-1252 ou iso-8859-1.")
+        };
+    }
+
+    private static bool IsUtf8(
+        Encoding encoding)
+    {
+        return encoding.CodePage == Encoding.UTF8.CodePage;
+    }
+
+    private static List<string> ReadRecords(
+        StreamReader reader)
+    {
+        var records =
+            new List<string>();
+
+        var current =
+            new StringBuilder();
+
+        var quoted = false;
+
+        while (!reader.EndOfStream)
+        {
+            var line =
+                reader.ReadLine() ?? string.Empty;
+
+            if (current.Length > 0)
+            {
+                current.Append('\n');
+            }
+
+            current.Append(line);
+
+            quoted =
+                UpdateQuoteState(
+                    line,
+                    quoted);
+
+            if (!quoted)
+            {
+                records.Add(
+                    current.ToString());
+
+                current.Clear();
+            }
+        }
+
+        if (current.Length > 0)
+        {
+            throw new InvalidOperationException(
+                "CSV inválido: aspas não fechadas.");
         }
 
         return records;
+    }
+
+    private static bool UpdateQuoteState(
+        string line,
+        bool quoted)
+    {
+        for (var i = 0; i < line.Length; i++)
+        {
+            if (line[i] != '"')
+            {
+                continue;
+            }
+
+            if (quoted &&
+                i + 1 < line.Length &&
+                line[i + 1] == '"')
+            {
+                i++;
+                continue;
+            }
+
+            quoted = !quoted;
+        }
+
+        return quoted;
+    }
+
+    private static List<string> ParseLine(
+        string line)
+    {
+        var values =
+            new List<string>();
+
+        var current =
+            new StringBuilder();
+
+        var quoted = false;
+
+        for (var i = 0; i < line.Length; i++)
+        {
+            var character =
+                line[i];
+
+            if (character == '"')
+            {
+                if (quoted &&
+                    i + 1 < line.Length &&
+                    line[i + 1] == '"')
+                {
+                    current.Append('"');
+                    i++;
+                    continue;
+                }
+
+                quoted = !quoted;
+                continue;
+            }
+
+            if (character == ',' && !quoted)
+            {
+                values.Add(
+                    current.ToString());
+
+                current.Clear();
+
+                continue;
+            }
+
+            current.Append(character);
+        }
+
+        if (quoted)
+        {
+            throw new InvalidOperationException(
+                "CSV inválido: aspas não fechadas.");
+        }
+
+        values.Add(
+            current.ToString());
+
+        return values;
     }
 }
