@@ -1,0 +1,8 @@
+{
+  "product": {
+    "id": "P001",
+    "name": "Mechanical Keyboard",
+    "price": 299.90,
+    "category": "peripherals"
+  }
+}

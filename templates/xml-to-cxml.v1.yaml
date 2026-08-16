@@ -1,0 +1,35 @@
+Id: xml-to-cxml
+Version: 1
+SourceFormat: xml
+TargetFormat: xml
+Description: Converts a purchase order XML document into cXML
+
+Mappings:
+  - SourcePath: OrderID
+    TargetPath: cXML.Request.OrderRequest.OrderID
+    Required: true
+
+  - SourcePath: Supplier.Name
+    TargetPath: cXML.Request.OrderRequest.Supplier.Name
+    Required: true
+
+  - SourcePath: Buyer.Name
+    TargetPath: cXML.Request.OrderRequest.Buyer.Name
+    Required: true
+
+  - SourcePath: Item.SKU
+    TargetPath: cXML.Request.OrderRequest.ItemOut.SKU
+    Required: true
+
+  - SourcePath: Item.Description
+    TargetPath: cXML.Request.OrderRequest.ItemOut.Description
+    Required: true
+
+  - SourcePath: Item.Quantity
+    TargetPath: cXML.Request.OrderRequest.ItemOut.Quantity
+    Required: true
+
+  - SourcePath: Item.UnitPrice
+    TargetPath: cXML.Request.OrderRequest.ItemOut.UnitPrice
+    Required: true
+    Transform: ToNumber

@@ -1,0 +1,25 @@
+Id: csv-to-xlsx
+Version: 1
+SourceFormat: csv
+TargetFormat: xlsx
+Description: Converts tabular CSV data into an Excel workbook
+RecordsPath: row
+
+Mappings:
+  - SourcePath: sku
+    TargetPath: sku
+    Required: true
+
+  - SourcePath: name
+    TargetPath: name
+    Required: true
+
+  - SourcePath: price
+    TargetPath: price
+    Required: false
+    Transform: ToNumber
+
+  - SourcePath: quantity
+    TargetPath: quantity
+    Required: false
+    Transform: ToNumber

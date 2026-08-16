@@ -1,0 +1,27 @@
+# .NET
+bin/
+obj/
+
+# Visual Studio
+.vs/
+.vscode/
+
+# Rider
+.idea/
+
+# Test results
+TestResults/
+
+# Build artifacts
+artifacts/
+
+# Generated output
+output/
+
+# User-specific files
+*.user
+*.suo
+
+# OS
+Thumbs.db
+.DS_Store

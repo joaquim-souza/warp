@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Cli/Cli.csproj" />
+    <Project Path="src/Core/Core.csproj" />
+  </Folder>
+  <Folder Name="/src/adapters/">
+    <Project Path="src/adapters/Warp.Excel/Warp.Excel.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Tests.csproj" />
+  </Folder>
+</Solution>

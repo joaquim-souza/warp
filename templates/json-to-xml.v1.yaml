@@ -1,0 +1,23 @@
+Id: json-to-xml
+Version: 1
+SourceFormat: json
+TargetFormat: xml
+Description: Converts a JSON product document into generic XML
+
+Mappings:
+  - SourcePath: product.id
+    TargetPath: product.id
+    Required: true
+
+  - SourcePath: product.name
+    TargetPath: product.name
+    Required: true
+
+  - SourcePath: product.price
+    TargetPath: product.price
+    Required: false
+    Transform: ToNumber
+
+  - SourcePath: product.category
+    TargetPath: product.category
+    Required: false
