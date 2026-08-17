@@ -1,0 +1,7 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Product>
+  <id>P001</id>
+  <name>Keyboard</name>
+  <price>99.9</price>
+  <category>Hardware</category>
+</Product>

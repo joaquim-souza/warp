@@ -68,7 +68,10 @@ public sealed class TemplateValidator
             }
         }
 
-        for (int i = 0; i < template.Mappings.Count; i++)
+        var targetPaths = new Dictionary<string, int>(
+            StringComparer.Ordinal);
+
+        for (var i = 0; i < template.Mappings.Count; i++)
         {
             var mapping = template.Mappings[i];
 
@@ -86,6 +89,29 @@ public sealed class TemplateValidator
                 result.AddError(
                     $"Mappings[{i}].TargetPath",
                     $"TargetPath inválido: '{mapping.TargetPath}'.");
+            }
+
+            if (targetPaths.TryGetValue(
+                    mapping.TargetPath,
+                    out var previousIndex))
+            {
+                result.AddError(
+                    $"Mappings[{i}].TargetPath",
+                    $"TargetPath duplicado: '{mapping.TargetPath}'. " +
+                    $"Já utilizado em Mappings[{previousIndex}].");
+            }
+            else
+            {
+                targetPaths[mapping.TargetPath] = i;
+            }
+
+            if (!Enum.IsDefined(
+                    typeof(TransformType),
+                    mapping.Transform))
+            {
+                result.AddError(
+                    $"Mappings[{i}].Transform",
+                    $"Transform inválido: '{mapping.Transform}'.");
             }
         }
 

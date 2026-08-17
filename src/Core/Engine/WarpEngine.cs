@@ -1,6 +1,9 @@
 using System.Diagnostics;
 using Warp.Core.Audit;
+using Warp.Core.Model;
+using Warp.Core.Parsing;
 using Warp.Core.Registry;
+using Warp.Core.Serialization;
 using Warp.Core.Templates;
 using Warp.Core.Transform;
 
@@ -11,7 +14,7 @@ public sealed class WarpEngine
     private readonly ParserRegistry _parsers;
     private readonly SerializerRegistry _serializers;
     private readonly Transformer _transformer;
-    private readonly IAuditSink _auditSink;
+    private readonly IAuditSink? _auditSink;
 
     public WarpEngine(
         ParserRegistry parsers,
@@ -22,7 +25,7 @@ public sealed class WarpEngine
         _parsers = parsers;
         _serializers = serializers;
         _transformer = transformer;
-        _auditSink = auditSink ?? new NullAuditSink();
+        _auditSink = auditSink;
     }
 
     public WarpResult Execute(
@@ -30,33 +33,47 @@ public sealed class WarpEngine
         Stream output,
         TemplateDefinition template)
     {
-        ArgumentNullException.ThrowIfNull(input);
-        ArgumentNullException.ThrowIfNull(output);
-        ArgumentNullException.ThrowIfNull(template);
-
-        var stopwatch = Stopwatch.StartNew();
-
-        WarpResult result;
+        var stopwatch =
+            Stopwatch.StartNew();
 
         try
         {
-            var parser = _parsers.Get(template.SourceFormat);
-            var serializer = _serializers.Get(template.TargetFormat);
+            var parser =
+                _parsers.Get(
+                    template.SourceFormat);
 
-            var source = parser.Parse(input);
+            var serializer =
+                _serializers.Get(
+                    template.TargetFormat);
 
-            var (transformed, validation) =
-                _transformer.Transform(source, template);
+            var document =
+                ParseInput(
+                    parser,
+                    input,
+                    template);
 
-            if (!validation.IsValid)
+            var transformation =
+                _transformer.Transform(
+                    document,
+                    template);
+
+            if (transformation.Validation.IsValid)
             {
-                result = new WarpResult(validation);
+                serializer.Serialize(
+                    transformation.Output,
+                    output);
             }
-            else
-            {
-                serializer.Serialize(transformed, output);
-                result = WarpResult.Success();
-            }
+
+            stopwatch.Stop();
+
+            RecordAudit(
+                template,
+                stopwatch.Elapsed,
+                transformation.Validation.Errors.Count,
+                transformation.Validation.IsValid);
+
+            return new WarpResult(
+                transformation.Validation);
         }
         catch
         {
@@ -64,31 +81,43 @@ public sealed class WarpEngine
 
             RecordAudit(
                 template,
-                success: false,
-                validationErrorCount: 0,
-                stopwatch.Elapsed);
+                stopwatch.Elapsed,
+                1,
+                false);
 
             throw;
         }
+    }
 
-        stopwatch.Stop();
+    private static CanonicalDocument ParseInput(
+        ICanonicalParser parser,
+        Stream input,
+        TemplateDefinition template)
+    {
+        if (parser is CsvParser csvParser)
+        {
+            return csvParser.Parse(
+                input,
+                template.Encoding);
+        }
 
-        RecordAudit(
-            template,
-            result.IsSuccess,
-            result.Validation.Errors.Count,
-            stopwatch.Elapsed);
-
-        return result;
+        return parser.Parse(
+            input);
     }
 
     private void RecordAudit(
-        TemplateDefinition template,
-        bool success,
-        int validationErrorCount,
-        TimeSpan duration)
+    TemplateDefinition template,
+    TimeSpan duration,
+    int validationErrorCount,
+    bool success)
+{
+    if (_auditSink is null)
     {
-        var auditEvent = new WarpAuditEvent(
+        return;
+    }
+
+    var auditEvent =
+        new WarpAuditEvent(
             template.Id,
             template.Version,
             template.SourceFormat,
@@ -97,15 +126,16 @@ public sealed class WarpEngine
             validationErrorCount,
             duration);
 
-        // Auditoria não pode derrubar a transformação.
-        try
-        {
-            _auditSink.Record(auditEvent);
-        }
-        catch
-        {
-            // O sink é infraestrutura opcional.
-            // Falha de auditoria não altera o resultado do WARP.
-        }
+    try
+    {
+        _auditSink.Record(
+            auditEvent);
     }
+    catch
+    {
+        // Auditoria é observabilidade.
+        // Falha no sink nunca deve interromper
+        // uma transformação válida.
+    }
+}
 }

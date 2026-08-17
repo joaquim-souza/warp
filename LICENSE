@@ -1,0 +1,81 @@
+# WARP Source Available License
+
+Copyright (c) 2026 Joaquim André
+
+## 1. Definitions
+
+"Software" means the WARP (Workflow-Agnostic Record Processor) software, including its source code, documentation, templates, tests, and associated materials distributed under this license.
+
+"Commercial Use" means any use of the Software that is primarily intended for or directed toward commercial advantage, monetary compensation, revenue generation, or use as part of a commercial product or service.
+
+"Author" means Joaquim André, the copyright holder of the Software.
+
+## 2. Permission
+
+Subject to the terms and conditions of this license, the Author grants you a non-exclusive, non-transferable, royalty-free license to:
+
+* view and inspect the source code;
+* copy the Software for personal use;
+* use the Software for educational and academic purposes;
+* evaluate and test the Software;
+* modify the Software for personal, educational, or evaluation purposes;
+* use the Software during technical interviews, recruitment processes, code reviews, demonstrations, and portfolio evaluation.
+
+These permissions do not grant permission for Commercial Use.
+
+## 3. Commercial Use
+
+Commercial Use of the Software is not permitted without prior written authorization from the Author.
+
+Commercial Use includes, but is not limited to:
+
+* incorporating the Software into a commercial product;
+* incorporating the Software into a commercial internal system;
+* offering the Software or a modified version of it as a paid service;
+* using the Software to provide a paid service to third parties;
+* redistributing the Software as part of a commercial product;
+* selling the Software or a derivative work;
+* offering hosting, SaaS, managed services, or similar services substantially based on the Software.
+
+Commercial authorization may be granted separately by the Author under terms agreed between the parties.
+
+## 4. Redistribution
+
+You may redistribute unmodified copies of the Software solely for personal, educational, academic, or evaluation purposes, provided that:
+
+1. this license is included with the redistributed copy;
+2. the original copyright notice is preserved;
+3. the Software is not presented as commercially licensed;
+4. no fee is charged specifically for the Software.
+
+Redistribution for Commercial Use requires prior written authorization from the Author.
+
+## 5. Modifications
+
+You may create and maintain modified versions of the Software for personal, educational, academic, or evaluation purposes.
+
+Modified versions must retain the original copyright notice and this license.
+
+Distribution or Commercial Use of modified versions requires prior written authorization from the Author.
+
+## 6. No Trademark License
+
+This license does not grant permission to use the name "WARP", the WARP logo, or other trademarks or branding associated with the Software for purposes that imply endorsement, sponsorship, or affiliation with the Author.
+
+## 7. No Warranty
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OF THE SOFTWARE.
+
+## 8. Termination
+
+Any rights granted under this license terminate automatically if you violate its terms.
+
+Upon termination, you must cease the use and distribution of the Software, except where otherwise permitted by applicable law.
+
+## 9. Copyright
+
+All rights not expressly granted by this license are reserved by the Author.
+
+Copyright © 2026 Joaquim André. All rights reserved.

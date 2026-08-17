@@ -24,6 +24,12 @@
   <ProjectReference Include="..\src\Core\Core.csproj" />
   <ProjectReference Include="..\src\adapters\Warp.Excel\Warp.Excel.csproj" />
   <ProjectReference Include="..\src\Cli\Cli.csproj" />
+
+  <None Include="Golden\Fixtures\**\*"
+        CopyToOutputDirectory="PreserveNewest" />
+
+  <None Include="Golden\Expected\**\*"
+        CopyToOutputDirectory="PreserveNewest" />
 </ItemGroup>
 
 </Project>

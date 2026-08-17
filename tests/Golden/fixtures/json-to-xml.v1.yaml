@@ -1,0 +1,23 @@
+Id: json-to-xml-golden
+Version: 1
+SourceFormat: json
+TargetFormat: xml
+OutputRoot: Product
+
+Mappings:
+  - SourcePath: product.id
+    TargetPath: id
+    Required: true
+
+  - SourcePath: product.name
+    TargetPath: name
+    Required: true
+
+  - SourcePath: product.price
+    TargetPath: price
+    Required: false
+    Transform: ToNumber
+
+  - SourcePath: product.category
+    TargetPath: category
+    Required: false
